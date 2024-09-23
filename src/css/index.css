@@ -51,9 +51,19 @@ header .container {
   font-size: 16px;
 }
 
+.logo-img{
+  display: flex;
+  align-self: center;
+  margin-right: 5px;
+}
+
 .info,
 .version {
   font-size: 0.7em;
+}
+
+.info{
+  align-self: flex-end;
 }
 
 .version {
