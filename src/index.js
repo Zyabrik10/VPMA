@@ -1,137 +1,6 @@
-let form,
-  output,
-  outputSeq,
-  lastSeq = [],
-  brakStron,
-  stronData;
-
-function opt(proc, mem, queue, seq, index) {
-  // if memory has such process, then do nothing
-  if (mem.indexOf(proc) !== -1) {
-    return;
-  }
-
-  // if memory has available space for this process, then we place this proces into the queue
-  const freeSpaceIndex = mem.indexOf(null);
-
-  if (freeSpaceIndex !== -1) {
-    queue.push(proc);
-    mem[freeSpaceIndex] = proc;
-    return;
-  }
-
-  // if memory has no free space and doesn't have this process, then we replace process in memory with this process
-  // OPT replacement
-  const arr = [];
-  let lastIndex = 0;
-
-  for (let i = index; i < seq.length; i++) {
-    if (
-      seq[i] !== proc &&
-      mem.findIndex((el) => el === seq[i]) !== -1 &&
-      arr.findIndex((el) => el === seq[i]) === -1
-    ) {
-      arr.push(seq[i]);
-    }
-
-    if (arr.length === mem.length) {
-      lastIndex = mem.findIndex((el) => el === arr[arr.length - 1]);
-      break;
-    }
-  }
-
-  if (arr.length === mem.length) {
-    mem[lastIndex] = proc;
-    console.log(mem, arr);
-    return;
-  }
-
-  let i = mem.findIndex(
-    (el) => mem.filter((el) => arr.findIndex((e) => el === e) === -1)[0] === el
-  );
-    
-  mem[i] = proc;
-}
-
-function lru(proc, mem, queue) {
-  // if memory has such process, then do nothing
-  let procIndex = queue.findIndex((el) => proc === el);
-
-  if (procIndex !== -1) {
-    queue.splice(procIndex, 1);
-    queue.push(proc);
-    return;
-  }
-
-  // if memory has available space for this process, then we place this proces into the queue
-  const freeSpaceIndex = mem.indexOf(null);
-
-  if (freeSpaceIndex !== -1) {
-    queue.push(proc);
-    mem[freeSpaceIndex] = proc;
-    return;
-  }
-
-  // if memory has no free space and doesn't have this process, then we replace process in memory with this process
-  // LRU replacement
-  const replaceElementIndex = mem.indexOf(queue[0]);
-  mem[replaceElementIndex] = proc;
-  queue.shift();
-  queue.push(proc);
-}
-
-function fifo(proc, mem, queue) {
-  // if memory has such process, then do nothing
-  if (mem.indexOf(proc) !== -1) {
-    return;
-  }
-
-  // if memory has available space for this process, then we place this proces into the queue
-  const freeSpaceIndex = mem.indexOf(null);
-
-  if (freeSpaceIndex !== -1) {
-    queue.push(proc);
-    mem[freeSpaceIndex] = proc;
-    return;
-  }
-
-  // if memory has no free space and doesn't have this process, then we replace process in memory with this process
-  // FIFO replacement
-  const replaceElementIndex = mem.indexOf(queue[0]);
-  mem[replaceElementIndex] = proc;
-  queue.shift();
-  queue.push(proc);
-}
-
-function drawMem(mem) {
-  const div = document.createElement("tr");
-
-  div.innerHTML = mem
-    .map((element) => {
-      let isOld = lastSeq.findIndex((e) => e === element) !== -1;
-
-      if (element === null) {
-        element = "";
-        isOld = true;
-      }
-
-      if (!isOld) brakStron++;
-
-      return `<td class="${isOld ? "" : "isOld"}">${element}</td>`;
-    })
-    .join("");
-  output.append(div);
-}
-
-function allocateMemory(size) {
-  const arr = [];
-
-  for (let i = 0; i < size; i++) {
-    arr[i] = null;
-  }
-
-  return arr;
-}
+import { fifo, lru, opt } from "./js/algorythms";
+import { drawOuputSeq, drawMem } from "./js/draw";
+import { config } from "./js/config";
 
 function getAlgor(alg) {
   switch (alg) {
@@ -139,66 +8,134 @@ function getAlgor(alg) {
       return fifo;
     case "lru":
       return lru;
+    case "opt":
+      return opt;
   }
 
   return undefined;
 }
 
-function drawOuputSeq(seq) {
-  seq.forEach((element) => {
-    const div = document.createElement("tr");
-    div.innerHTML = `<td>${element}</td>`;
-    outputSeq.append(div);
-  });
+function resetVisualization() {
+  config.pageFault = 0;
+  config.pageData.innerText = config.pageFault;
+  config.output.innerHTML = "";
+  config.outputSeq.innerHTML = "";
+  config.lastSeq = [];
+  config.boutAlgorythmTitleIndicator.classList.remove("active");
+  config.aboutAlgorythmBoxes.forEach((e) => e.classList.remove("active"));
+}
+
+function validateAndReturnData(dataToValidate) {
+  const { algorythm, memorySize, sequence } = dataToValidate;
+
+  const validatedAlgorythm = getAlgor(algorythm);
+  const validatedMemorySize = +memorySize;
+  let validatedSequence;
+
+  if (!validatedAlgorythm) {
+    return {
+      message: `Invalid algorithm value: ${algorythm}`,
+    };
+  }
+
+  if (isNaN(validatedMemorySize)) {
+    return {
+      message: `Invalid memory size value: ${memorySize}`,
+    };
+  }
+
+  const problemIndex = sequence.findIndex((e) => isNaN(+e));
+  if (problemIndex !== -1) {
+    return {
+      message: `Invalid sequence value: ${sequence}:${problemIndex} -> ${sequence.find(
+        (_, index) => index === problemIndex
+      )}`,
+    };
+  }
+
+  validatedSequence = sequence.map((e) => +e);
+
+  return {
+    validatedAlgorythm,
+    validatedMemorySize,
+    validatedSequence,
+  };
 }
 
 function visualize() {
-  brakStron = 0;
-  stronData.innerText = brakStron;
-  output.innerHTML = "";
-  outputSeq.innerHTML = ""; // Clear previous sequence
-  lastSeq = [];
+  const algorythm = config.form.alg.value.toLowerCase().trim();
+  const memorySize = config.form.mem.value.toLowerCase().trim();
+  const sequence = config.form.input.value.trim().split(" ");
 
-  const alg = form.alg.value.toLowerCase().trim();
-  const memSize = form.mem.value.toLowerCase().trim();
-  const seq = form.input.value
-    .trim()
-    .split(" ")
-    .map((e) => +e);
+  const {
+    validatedAlgorythm,
+    validatedMemorySize,
+    validatedSequence,
+    message,
+  } = validateAndReturnData({ algorythm, memorySize, sequence });
 
-  const mem = allocateMemory(memSize);
-  const queue = [];
-  const funcAlg = getAlgor(alg);
-
-  drawOuputSeq(seq);
-
-  for (let i = 0; i < seq.length; i++) {
-    const element = +seq[i];
-
-    if (!funcAlg) {
-      opt(element, mem, queue, seq, i);
-    } else {
-      funcAlg(element, mem, queue);
-    }
-
-    drawMem(mem);
-    if (alg !== "opt") lastSeq = [...queue];
-    else lastSeq = [...mem];
+  if (message !== undefined) {
+    toastr.error(message);
+    return;
   }
 
-  stronData.innerText = brakStron;
+  resetVisualization();
+
+  const mem = Array(validatedMemorySize).fill(null);
+  const queue = [];
+
+  config.aboutAlgTitleSpan.innerText = algorythm.toUpperCase();
+  config.aboutAlgorythmBoxes.forEach((e) => {
+    if (e.dataset.alg === algorythm) {
+      e.classList.add("active");
+    } else {
+      e.classList.remove("active");
+    }
+  });
+
+  drawOuputSeq(validatedSequence);
+
+  for (let i = 0; i < validatedSequence.length; i++) {
+    validatedAlgorythm(+validatedSequence[i], mem, queue, validatedSequence, i);
+
+    drawMem(mem);
+    config.lastSeq = algorythm !== "opt" ? [...queue] : [...mem];
+  }
+
+  config.pageData.innerText = config.pageFault;
 }
 
 window.addEventListener("load", () => {
-  form = document.querySelector(".form");
-  output = document.querySelector(".output");
-  stronData = document.querySelector(".stron-data");
-  outputSeq = document.querySelector(".output-seq");
+  config.form = document.querySelector(".form");
+  config.output = document.querySelector(".output");
+  config.pageData = document.querySelector(".stron-data");
+  config.outputSeq = document.querySelector(".output-seq");
+  config.aboutAlgTitle = document.querySelector(".about-algorythm-title");
+  config.aboutAlgTitleSpan = document.querySelector(
+    ".about-algorythm-title-span"
+  );
+  config.aboutAlgorythmBoxes = document.querySelectorAll(
+    ".about-algorythm-box"
+  );
+  config.boutAlgorythmTitleIndicator = document.querySelector(
+    ".about-algorythm-title-indicator"
+  );
 
   visualize();
 
-  form.addEventListener("submit", (e) => {
+  config.form.addEventListener("submit", (e) => {
     e.preventDefault();
     visualize();
+  });
+
+  config.aboutAlgTitle.addEventListener("click", (e) => {
+    config.boutAlgorythmTitleIndicator.classList.toggle("active");
+    config.aboutAlgorythmBoxes.forEach((e) => {
+      if (e.classList.contains("active")) {
+        e.classList.toggle("visible");
+      } else {
+        e.classList.remove("visible");
+      }
+    });
   });
 });
